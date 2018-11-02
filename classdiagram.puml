@@ -1,0 +1,27 @@
+@startuml
+
+class Bill {
+sellerId
+buyerId
+issueDate
+paymentDate
+getTotalPrice()
+}
+
+class Element {
+quantity
+getTotalPrice()
+}
+
+class Item {
+fullName
+price
+}
+
+Bill "1" -> "*" Element : contains
+
+Element "1" --> "1" Item : contains
+
+
+
+@enduml
