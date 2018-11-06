@@ -5,11 +5,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import pl.wilkosz.bills.*;
+import pl.wilkosz.bills.databases.Database;
+import pl.wilkosz.bills.databases.FileDatabase;
 import pl.wilkosz.bills.jsonparser.JsonParser;
 
+/**
+ * Basic terminal-based UI.
+ */
 public class TerminalUserInterface {
-  private static final String DB_FILE_PATH = "/home/wilkosz/fakturki";
+  /**
+   * Database connection.
+   */
+  private static final Database db = new FileDatabase();
 
+  /**
+   * Main method.
+   * @param args args passed by the user, not used.
+   */
   public static void main(final String[] args) {
     final Scanner scanner = new Scanner(System.in);
     boolean chosen = false;
@@ -26,7 +38,6 @@ public class TerminalUserInterface {
         showBills();
       }
     }
-
   }
 
   private static void showBills() {
@@ -35,17 +46,12 @@ public class TerminalUserInterface {
     System.out.println("Show all (a) bills or of a particular buyer (b)?");
     final char choice = scanner.nextLine().charAt(0);
 
-    List<Bill> bills = new ArrayList<>();
-
-    try (ObjectInputStream objectInputStream =
-             new ObjectInputStream(new FileInputStream(DB_FILE_PATH))) {
-      bills = (List<Bill>) objectInputStream.readObject();
-    } catch (FileNotFoundException notfound) {
-      System.out.println("Database file not found");
-    } catch (IOException ioe) {
-      // pass occurs only when file is empty
-    } catch (ClassNotFoundException cnfe) {
-      System.out.println("unknown error");
+    List<Bill> bills;
+    try {
+      bills = db.readBills();
+    } catch (IOException e) {
+      System.out.println(e.getMessage());
+      return;
     }
 
     if (choice == 'a') {
@@ -61,7 +67,6 @@ public class TerminalUserInterface {
         }
       }
       System.out.println(JsonParser.dumpList(result));
-
     }
   }
 
@@ -77,7 +82,7 @@ public class TerminalUserInterface {
     System.out.println("Specify payment date");
     final String paymentDate = scanner.nextLine();
 
-    Bill bill = null;
+    Bill bill;
     try {
       bill = new Bill(issueDate, paymentDate, sellerId, buyerId);
     } catch (BillException e) {
@@ -99,6 +104,7 @@ public class TerminalUserInterface {
         System.out.println("Specify quantity");
         final double quantity = scanner.nextDouble();
         scanner.nextLine();
+
         try {
           bill.addItems(new Item(price, name), quantity);
         } catch (BillException e) {
@@ -110,30 +116,12 @@ public class TerminalUserInterface {
         final String json = JsonParser.dump(bill);
         System.out.println(json);
 
-        List<Bill> bills = new ArrayList<>();
-
-        try (ObjectInputStream objectInputStream =
-                 new ObjectInputStream(new FileInputStream(DB_FILE_PATH))) {
-          bills = (List<Bill>) objectInputStream.readObject();
-        } catch (FileNotFoundException notfound) {
-          System.out.println("Database file not found");
-        } catch (IOException ioe) {
-          // pass occurs only when file is empty
-        } catch (ClassNotFoundException cnfe) {
-          System.out.println("unknown error");
+        try {
+          db.addBill(bill);
+        } catch (IOException e) {
+          System.out.println(e.getMessage());
+          return;
         }
-
-        bills.add(bill);
-
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(DB_FILE_PATH))) {
-          out.writeObject(bills);
-        } catch (FileNotFoundException notfound) {
-          System.out.println("Database file not found");
-        } catch (IOException ioe) {
-          // pass, occurs only with empty file
-        }
-
-        return;
       }
     }
   }
